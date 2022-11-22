@@ -1,129 +1,132 @@
 #include "main_full.h"
-
-
-/* 
-    parse_arguments() recieves argc and argv and copies the command line
-    parameters to the output buffers pattern and filename. 
-*/
-int parse_arguments(int argc, char *argv[], char* pattern, char* filename, switches* sws)
-{
-    if(argc < 3)
-        return FALSE;
-
-    // if the first argument is not a switch, then it's the pattern to search
-    if (!parse_switch(argv[1], sws))
-        strcpy(pattern, argv[1]);
-    
-    // parse the remaining command line arguments
-    for(int i=2; i < argc; i++)
-    {
-        // handle compound switch (-A number, -E "quoted string")
-        if(sws->next_is_prev_num_lines)
-        {
-            sws->next_is_prev_num_lines = FALSE;
-            sws->print_n_prev_lines = atoi(argv[i]);
-        }
-        else if(sws->next_is_quoted_string)
-        {
-            sws->next_is_quoted_string = FALSE;
-            strcpy(pattern, argv[i]);
-        }
-        else
-        {
-            // handle switches
-            if(!parse_switch(argv[i], sws))
-            {
-                // if unable to parse the switch and it's the last argument then it's the filename
-                if (i == argc - 1)
-                    strcpy(filename, argv[argc - 1]);
-                // otherwise it's an error
-                else
-                    return FALSE;                
-            }
-        }
-    }
-
-    return TRUE;
-}
+#include "keys.h"
 
 /*
     parse_switch() is a helper function to search for switches
-    return TRUE if the string is a switch
+    return true if the string is a switch
 */
-int parse_switch(char*s, switches*sws)
+bool parse_switch(char*s, switches*sws)
 {
-    if(strcmp(s, "-b") == 0)
-        sws->print_num_bytes = TRUE;
-    else if(strcmp(s, "-c") == 0)
-        sws->print_only_line_nums = TRUE;
-    else if(strcmp(s, "-i") == 0)
-        sws->case_insensitive = TRUE;
-    else if(strcmp(s, "-n") == 0)
-        sws->print_line_num = TRUE;        
-    else if(strcmp(s, "-v") == 0)
-        sws->print_not_matching = TRUE;
-    else if(strcmp(s, "-x") == 0)
-        sws->print_exact_match = TRUE;
+    if(strcmp(s, "-b") == 0){
+        sws->b_print_num_bytes = true;
+    }
+    else if(strcmp(s, "-c") == 0){
+        sws->c_print_only_line_nums = true;
+    }
+    else if(strcmp(s, "-i") == 0){
+        sws->i_case_insensitive = true;
+    }
+    else if(strcmp(s, "-n") == 0){
+        sws->n_print_line_num = true;
+    }        
+    else if(strcmp(s, "-v") == 0){
+        sws->v_print_not_matching = true;
+    }
+    else if(strcmp(s, "-x") == 0){
+        sws->x_print_exact_match = true;
+    }
     else if(strcmp(s, "-A") == 0)
     {
-        sws->print_n_prev_lines = TRUE;
-        sws->next_is_prev_num_lines = TRUE;
+        sws->A_print_n_prev_lines = true;
+        sws->next_is_prev_num_lines = true;
     }
     else if(strcmp(s, "-E") == 0)
     {
-        sws->quoted_string = TRUE;
-        sws->next_is_quoted_string = TRUE;
+        sws->quoted_string = true;
+        sws->next_is_quoted_string = true;
     }
-    else
-        return FALSE;
-    return TRUE;
+    else{
+        return false;
+    }
+    return true;
 }
 /*
     print_switches() prints the parsed switches, for debugging purposes
 */
 void print_switches(switches sws)
 {
-    printf("print_n_prev_lines %d\n", sws.print_n_prev_lines);
-    printf("print_num_bytes %d\n", sws.print_num_bytes);
-    printf("print_only_line_nums %d\n", sws.print_only_line_nums);
-    printf("case_insensitive %d\n", sws.case_insensitive);
-    printf("print_line_num %d\n", sws.print_line_num);
-    printf("print_not_matching %d\n", sws.print_not_matching);
-    printf("print_exact_match %d\n", sws.print_exact_match);
+    printf("print_n_prev_lines %d\n", sws.A_print_n_prev_lines);
+    printf("print_num_bytes %d\n", sws.b_print_num_bytes);
+    printf("print_only_line_nums %d\n", sws.c_print_only_line_nums);
+    printf("case_insensitive %d\n", sws.i_case_insensitive);
+    printf("print_line_num %d\n", sws.n_print_line_num);
+    printf("print_not_matching %d\n", sws.v_print_not_matching);
+    printf("print_exact_match %d\n", sws.x_print_exact_match);
 }
 
+void error_no_pattern(){
+    printf("please enter a pattern\n");
+}
 
-/* 
-    match_pattern() receives a pattern and filename and goes through every line in 
-    the file and searches for the pattern. Upon a match, it prints the entire line 
-*/
-int match_pattern(char* pattern, char* filename)
-{
-    FILE *f;
-    char line[STR_MAX_SZ];
+bool parse_arguments(int argc, char *argv[], char* pattern, char* filename, switches* sws,indexes_pattern_and_filename* indexes_pattern_filename)
+{   
+    bool grep_flag , input_with_file;
+    int check_if_pattern_or_filename=0;
+    int i;
+    for (i=1; i<argc; i++){
+        grep_flag=parse_switch(argv[i],sws);
+        if (!grep_flag && check_if_pattern_or_filename==0){
+            indexes_pattern_filename->pattern_index_in_argc=i;
+            check_if_pattern_or_filename++;
+        }
+        else if(!grep_flag && check_if_pattern_or_filename==1){
+            indexes_pattern_filename->filename_index_in_argc=i;
+            check_if_pattern_or_filename++;
+        }
+    }
+    if (check_if_pattern_or_filename==0){
+        error_no_pattern();
+    }
+    if (check_if_pattern_or_filename==1){
+        input_with_file=false;
+    }
+    input_with_file=true;
+    print_switches(*sws);
+    return input_with_file;
+}
 
-    if (strlen(filename) == 0)
-    {
-        // TODO handle standard input
-        return TRUE;
+void read_file_and_print(char* filename, char* pattern, switches* sws){
+    size_t line_len=0;
+    char* line=0;
+    int read_chars=1, total_read_chars=0,line_counter=1,c_key_need_to_print=0;
+    int A_key_count_remaining, A_NUM;
+    bool print_line, A_print_line;
+    FILE* f;
+    f=fopen(filename,"r");
+    while (read_chars>0){
+        read_chars=getline(&line,&line_len,f);
+        if (sws->i_case_insensitive){
+            strcpy(line,i_key_get_lowcase_line(line,line_len));
+            printf("%s\n",line);
+            strcpy(pattern,i_key_get_lowcase_pattern(pattern));
+        }
+        if (sws->x_print_exact_match){
+            print_line=x_key_only_and_exact_pattern(line,pattern);
+        }
+        if (sws->v_print_not_matching){
+            if (sws->x_print_exact_match){
+                print_line=!print_line;
+            }
+            else{
+                print_line=v_key_pattern_not_found(line,pattern);
+            }
+        }
+        if (sws->b_print_num_bytes){
+            total_read_chars=b_key_count_bytes(total_read_chars,read_chars);
+        }
+        if (sws->n_print_line_num){
+            line_counter=n_key_count_lines(line_counter);
+        }
+        if (sws->c_print_only_line_nums){
+            c_key_need_to_print=c_key_count_line_to_print(c_key_need_to_print);
+            print_line=false;
+        }
+        if (sws->A_print_n_prev_lines){
+            A_key_count_remaining=A_key_add_num_lines(print_line, A_NUM, A_key_count_remaining);
+            A_print_line=check_if_print(A_key_count_remaining);
+            
+        }
     }
-    f = fopen(filename, "rt");
-    if(f==NULL)
-    {
-        printf("File %s not found\n", filename);
-        return FALSE;
-    }
-
-    while(!feof(f))
-    {
-        fgets(line, STR_MAX_SZ, f);
-        if(f==NULL)
-            break;
-        if(strstr(line, pattern))
-            printf("%s", line);
-    }
-    fclose(f);
-    return TRUE;
 }
 
 /*
@@ -131,20 +134,22 @@ int match_pattern(char* pattern, char* filename)
 */
 int main(int argc, char*argv[])
 {
-    char filename[STR_MAX_SZ] = { 0 }, pattern[STR_MAX_SZ] = { 0 };
-    switches sws = { 0 };
+    char *filename, *pattern;
+    bool input_with_file;
+    switches sws = { false };
+    indexes_pattern_and_filename* indexes_pattern_filename;
+    indexes_pattern_filename=(indexes_pattern_and_filename*) malloc(sizeof(indexes_pattern_and_filename));
+    input_with_file=parse_arguments(argc, argv, pattern, filename, (switches*)&sws, indexes_pattern_filename);
+    pattern=(char*) malloc(strlen(argv[indexes_pattern_filename->pattern_index_in_argc])*sizeof(char));
+    filename=(char*) malloc(strlen(argv[indexes_pattern_filename->filename_index_in_argc])*sizeof(char));
+    strcpy(pattern,argv[indexes_pattern_filename->pattern_index_in_argc]);
+    strcpy(filename,argv[indexes_pattern_filename->filename_index_in_argc]);
+    printf("%s\n%s\n",pattern,filename);
+    read_file_and_print(filename, pattern, &sws);
 
-    if(parse_arguments(argc, argv, pattern, filename, (switches*)&sws))
-        match_pattern(pattern, filename);
-    else
-    {
-        printf(USAGE);
-        return 1;
-    }
-
-    print_switches(sws);
-    printf("File is %s\n", (strlen(filename) == 0) ? "stdin" : filename);
-    printf("String to search is '%s'\n", pattern);
+    
+    free(pattern);
+    free(filename);
 
     return 0;
 }

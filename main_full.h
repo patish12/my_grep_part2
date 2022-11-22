@@ -19,6 +19,7 @@ typedef struct _switches
     bool x_print_exact_match;
     bool quoted_string;
     bool next_is_quoted_string;
+    int A_num;
     bool next_is_prev_num_lines;
 } switches;
 

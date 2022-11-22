@@ -64,6 +64,11 @@ bool parse_arguments(int argc, char *argv[], char* pattern, char* filename, swit
     int check_if_pattern_or_filename=0;
     int i;
     for (i=1; i<argc; i++){
+        if (sws->next_is_prev_num_lines){
+            sws->next_is_prev_num_lines=false;
+            sws->A_num=atoi(argv[i]);
+            continue;
+        }
         grep_flag=parse_switch(argv[i],sws);
         if (!grep_flag && check_if_pattern_or_filename==0){
             indexes_pattern_filename->pattern_index_in_argc=i;
@@ -81,7 +86,6 @@ bool parse_arguments(int argc, char *argv[], char* pattern, char* filename, swit
         input_with_file=false;
     }
     input_with_file=true;
-    print_switches(*sws);
     return input_with_file;
 }
 
@@ -89,15 +93,18 @@ void read_file_and_print(char* filename, char* pattern, switches* sws){
     size_t line_len=0;
     char* line=0;
     int read_chars=1, total_read_chars=0,line_counter=1,c_key_need_to_print=0;
-    int A_key_count_remaining, A_NUM;
-    bool print_line, A_print_line;
+    int A_key_count_remaining=-1;
+    bool print_line, A_print_line=false, print_sequencly=true;
     FILE* f;
     f=fopen(filename,"r");
     while (read_chars>0){
         read_chars=getline(&line,&line_len,f);
+        if (read_chars==-1){
+            continue;
+        }
+        line[read_chars-1]='\0';
         if (sws->i_case_insensitive){
             strcpy(line,i_key_get_lowcase_line(line,line_len));
-            printf("%s\n",line);
             strcpy(pattern,i_key_get_lowcase_pattern(pattern));
         }
         if (sws->x_print_exact_match){
@@ -111,22 +118,27 @@ void read_file_and_print(char* filename, char* pattern, switches* sws){
                 print_line=v_key_pattern_not_found(line,pattern);
             }
         }
-        if (sws->b_print_num_bytes){
-            total_read_chars=b_key_count_bytes(total_read_chars,read_chars);
-        }
-        if (sws->n_print_line_num){
-            line_counter=n_key_count_lines(line_counter);
+        if (!sws->x_print_exact_match && !sws->v_print_not_matching){
+            print_line=check_default(line, pattern);
         }
         if (sws->c_print_only_line_nums){
-            c_key_need_to_print=c_key_count_line_to_print(c_key_need_to_print);
+            c_key_need_to_print=c_key_count_line_to_print(c_key_need_to_print,print_line);
             print_line=false;
         }
         if (sws->A_print_n_prev_lines){
-            A_key_count_remaining=A_key_add_num_lines(print_line, A_NUM, A_key_count_remaining);
+            A_key_count_remaining=A_key_add_num_lines(print_line, sws->A_num, A_key_count_remaining);
             A_print_line=check_if_print(A_key_count_remaining);
-            
         }
+        print_sequencly=print_output(line,print_line,sws,total_read_chars,line_counter,c_key_need_to_print,A_print_line,print_sequencly);
+        if (sws->b_print_num_bytes){
+            total_read_chars=b_key_count_bytes(total_read_chars,read_chars);
+        }
+        line_counter=n_key_count_lines(line_counter);
     }
+    if (sws->c_print_only_line_nums){
+        print_c_key_output(c_key_need_to_print);
+    }
+    fclose(f);
 }
 
 /*
@@ -144,7 +156,6 @@ int main(int argc, char*argv[])
     filename=(char*) malloc(strlen(argv[indexes_pattern_filename->filename_index_in_argc])*sizeof(char));
     strcpy(pattern,argv[indexes_pattern_filename->pattern_index_in_argc]);
     strcpy(filename,argv[indexes_pattern_filename->filename_index_in_argc]);
-    printf("%s\n%s\n",pattern,filename);
     read_file_and_print(filename, pattern, &sws);
 
     

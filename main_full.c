@@ -91,7 +91,7 @@ bool parse_arguments(int argc, char *argv[], char* pattern, char* filename, swit
 
 void read_file_and_print(char* filename, char* pattern, switches* sws){
     size_t line_len=0;
-    char* line=0;
+    char *line=0, *original_line_copy;
     int read_chars=1, total_read_chars=0,line_counter=1,c_key_need_to_print=0;
     int A_key_count_remaining=-1;
     bool print_line, A_print_line=false, print_sequencly=true;
@@ -99,10 +99,12 @@ void read_file_and_print(char* filename, char* pattern, switches* sws){
     f=fopen(filename,"r");
     while (read_chars>0){
         read_chars=getline(&line,&line_len,f);
+        original_line_copy=(char*) malloc (read_chars*sizeof(char));
         if (read_chars==-1){
             continue;
         }
         line[read_chars-1]='\0';
+        strcpy(original_line_copy, line);
         if (sws->i_case_insensitive){
             strcpy(line,i_key_get_lowcase_line(line,line_len));
             strcpy(pattern,i_key_get_lowcase_pattern(pattern));
@@ -129,11 +131,12 @@ void read_file_and_print(char* filename, char* pattern, switches* sws){
             A_key_count_remaining=A_key_add_num_lines(print_line, sws->A_num, A_key_count_remaining);
             A_print_line=check_if_print(A_key_count_remaining);
         }
-        print_sequencly=print_output(line,print_line,sws,total_read_chars,line_counter,c_key_need_to_print,A_print_line,print_sequencly);
+        print_sequencly=print_output(original_line_copy,print_line,sws,total_read_chars,line_counter,c_key_need_to_print,A_print_line,print_sequencly);
         if (sws->b_print_num_bytes){
             total_read_chars=b_key_count_bytes(total_read_chars,read_chars);
         }
         line_counter=n_key_count_lines(line_counter);
+        free(original_line_copy);
     }
     if (sws->c_print_only_line_nums){
         print_c_key_output(c_key_need_to_print);
@@ -158,9 +161,8 @@ int main(int argc, char*argv[])
     strcpy(filename,argv[indexes_pattern_filename->filename_index_in_argc]);
     read_file_and_print(filename, pattern, &sws);
 
-    
     free(pattern);
     free(filename);
-
+    free(indexes_pattern_filename);
     return 0;
 }

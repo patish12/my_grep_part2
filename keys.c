@@ -4,35 +4,35 @@
 #include "keys.h"
 
 
-bool print_output(char* line, bool print_line,switches* sws,int total_read_chars,int line_counter,int c_key_need_to_print,bool A_print_line,bool print_sequencly){
+void print_output(data_for_print* data,char* line, switches* sws){
 	char a;
-	bool need_to_print=A_print_line || print_line;
-	if (line_counter==1){
-			print_sequencly=need_to_print;
-	}
+	bool need_to_print=data->print_becauseof_A || data->print_line;
+
 	if (sws->A_print_n_prev_lines){
-		//printf("%d, %d\n",line_counter,last_printed);
-		if (need_to_print==true && print_sequencly==false){
+		if (need_to_print && data->last_printed==false && data->first_print_done){
 			printf("--\n");
 		}
+		if (need_to_print && data->first_print_done==false){
+			data->first_print_done=true;
+		}
 	}
-	if (A_print_line){
+	if (data->print_becauseof_A){
 		a='-';
 	}
-	if (print_line){
+	if (data->print_line){
 		a=':';
 	}
 	if (need_to_print){
 		if (sws->n_print_line_num){
-			printf("%d%c",line_counter,a);
+			printf("%d%c",data->line_counter,a);
 		}
 		if (sws->b_print_num_bytes){
-			printf("%d%c",total_read_chars,a);
+			printf("%d%c",data->total_bytes_read,a);
 		}
 			printf("%s\n",line);
 	}
 
-	return need_to_print;
+	data->last_printed=need_to_print;
 }
 
 void print_c_key_output(int c_key_need_to_print){
@@ -94,11 +94,11 @@ int n_key_count_lines(int line_counter){
 	return line_counter;
 }
 
-int c_key_count_line_to_print(int c_key_need_to_print, bool print_line){
-	if (print_line){
-		c_key_need_to_print++;
+void c_key_count_line_to_print(data_for_print* data){
+	if (data->print_line){
+		data->c_key_need_to_print++;
+		data->print_line=false;
 	}
-	return c_key_need_to_print;
 }
 
 int A_key_add_num_lines(bool print_line, int A_NUM, int A_key_count_remaining){

@@ -89,13 +89,59 @@ bool parse_arguments(int argc, char *argv[], char* pattern, char* filename, swit
     return input_with_file;
 }
 
+void initialize_print_data(data_for_print* data){
+    data->print_line=false;
+    data->print_becauseof_A=false;
+    data->total_bytes_read=0;
+    data->line_counter=1;
+    data->c_key_need_to_print=0;
+    data->last_printed=true;
+    data->first_print_done=false;
+}
+
+int analyze_line_and_print(data_for_print* data,switches* sws, char* pattern, char* line, char* original_line_copy,
+ int A_key_count_remaining, int line_len, int read_chars){
+    if (sws->i_case_insensitive){
+        strcpy(line,i_key_get_lowcase_line(line,line_len));
+        strcpy(pattern,i_key_get_lowcase_pattern(pattern));
+    }
+    if (sws->x_print_exact_match){
+        data->print_line=x_key_only_and_exact_pattern(line,pattern);
+    }
+    if (sws->v_print_not_matching){
+        if (sws->x_print_exact_match){
+            data->print_line=!data->print_line;
+        }
+        else{
+            data->print_line=v_key_pattern_not_found(line,pattern);
+        }
+    }
+    if (!sws->x_print_exact_match && !sws->v_print_not_matching){
+        data->print_line=check_default(line, pattern);
+    }
+    if (sws->c_print_only_line_nums){
+        c_key_count_line_to_print(data);
+        data->print_line=false;
+    }
+    if (sws->A_print_n_prev_lines){
+        A_key_count_remaining=A_key_add_num_lines(data->print_line, sws->A_num, A_key_count_remaining);
+        data->print_becauseof_A=check_if_print(A_key_count_remaining);
+    }
+    print_output(data, original_line_copy,sws);
+    if (sws->b_print_num_bytes){
+        data->total_bytes_read=b_key_count_bytes(data->total_bytes_read,read_chars);
+    }
+    data->line_counter=n_key_count_lines(data->line_counter);
+    return A_key_count_remaining;
+}
+
 void read_file_and_print(char* filename, char* pattern, switches* sws){
     size_t line_len=0;
     char *line=0, *original_line_copy;
-    int read_chars=1, total_read_chars=0,line_counter=1,c_key_need_to_print=0;
-    int A_key_count_remaining=-1;
-    bool print_line, A_print_line=false, print_sequencly=true;
+    int read_chars=1, A_key_count_remaining=-1;
     FILE* f;
+    data_for_print *data = (data_for_print*) malloc(sizeof(data_for_print));
+    initialize_print_data(data);
     f=fopen(filename,"r");
     while (read_chars>0){
         read_chars=getline(&line,&line_len,f);
@@ -105,42 +151,14 @@ void read_file_and_print(char* filename, char* pattern, switches* sws){
         }
         line[read_chars-1]='\0';
         strcpy(original_line_copy, line);
-        if (sws->i_case_insensitive){
-            strcpy(line,i_key_get_lowcase_line(line,line_len));
-            strcpy(pattern,i_key_get_lowcase_pattern(pattern));
-        }
-        if (sws->x_print_exact_match){
-            print_line=x_key_only_and_exact_pattern(line,pattern);
-        }
-        if (sws->v_print_not_matching){
-            if (sws->x_print_exact_match){
-                print_line=!print_line;
-            }
-            else{
-                print_line=v_key_pattern_not_found(line,pattern);
-            }
-        }
-        if (!sws->x_print_exact_match && !sws->v_print_not_matching){
-            print_line=check_default(line, pattern);
-        }
-        if (sws->c_print_only_line_nums){
-            c_key_need_to_print=c_key_count_line_to_print(c_key_need_to_print,print_line);
-            print_line=false;
-        }
-        if (sws->A_print_n_prev_lines){
-            A_key_count_remaining=A_key_add_num_lines(print_line, sws->A_num, A_key_count_remaining);
-            A_print_line=check_if_print(A_key_count_remaining);
-        }
-        print_sequencly=print_output(original_line_copy,print_line,sws,total_read_chars,line_counter,c_key_need_to_print,A_print_line,print_sequencly);
-        if (sws->b_print_num_bytes){
-            total_read_chars=b_key_count_bytes(total_read_chars,read_chars);
-        }
-        line_counter=n_key_count_lines(line_counter);
+        //sws,line,original_line_copy,line_len,pattern,data,A_count_remaining
+        A_key_count_remaining=analyze_line_and_print(data,sws, pattern, line, original_line_copy, A_key_count_remaining,line_len, read_chars);
         free(original_line_copy);
     }
     if (sws->c_print_only_line_nums){
-        print_c_key_output(c_key_need_to_print);
+        print_c_key_output(data->c_key_need_to_print);
     }
+    free(data);
     fclose(f);
 }
 

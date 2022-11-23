@@ -31,5 +31,20 @@ typedef struct _indexes_pattern_and_filename
 
 }indexes_pattern_and_filename;
  
+typedef struct _data_for_print
+{
+    bool print_line;
+    int total_bytes_read;
+    int line_counter;
+    bool print_becauseof_A;
+    int c_key_need_to_print;
+    bool last_printed;
+    bool first_print_done;
+
+}data_for_print;
+
+void initialize_print_data(data_for_print* data);
+
+
  #endif
 

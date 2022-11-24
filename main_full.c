@@ -60,7 +60,7 @@ void error_no_pattern(){
 
 bool parse_arguments(int argc, char *argv[], char* pattern, char* filename, switches* sws,indexes_pattern_and_filename* indexes_pattern_filename)
 {   
-    bool grep_flag , input_with_file;
+    bool grep_flag , input_with_file=true;
     int check_if_pattern_or_filename=0;
     int i;
     for (i=1; i<argc; i++){
@@ -85,7 +85,6 @@ bool parse_arguments(int argc, char *argv[], char* pattern, char* filename, swit
     if (check_if_pattern_or_filename==1){
         input_with_file=false;
     }
-    input_with_file=true;
     return input_with_file;
 }
 
@@ -100,7 +99,7 @@ void initialize_print_data(data_for_print* data){
 }
 
 int analyze_line_and_print(data_for_print* data,switches* sws, char* pattern, char* line, char* original_line_copy,
- int A_key_count_remaining, int line_len, int read_chars){
+    int A_key_count_remaining, int line_len, int read_chars){
     if (sws->i_case_insensitive){
         strcpy(line,i_key_get_lowcase_line(line,line_len));
         strcpy(pattern,i_key_get_lowcase_pattern(pattern));
@@ -139,10 +138,12 @@ void read_file_and_print(char* filename, char* pattern, switches* sws){
     size_t line_len=0;
     char *line=0, *original_line_copy;
     int read_chars=1, A_key_count_remaining=-1;
-    FILE* f;
+    FILE* f=stdin;
     data_for_print *data = (data_for_print*) malloc(sizeof(data_for_print));
     initialize_print_data(data);
-    f=fopen(filename,"r");
+    if (strcmp(filename,"stdin")){
+        f=fopen(filename,"r");
+    }
     while (read_chars>0){
         read_chars=getline(&line,&line_len,f);
         original_line_copy=(char*) malloc (read_chars*sizeof(char));
@@ -159,7 +160,10 @@ void read_file_and_print(char* filename, char* pattern, switches* sws){
         print_c_key_output(data->c_key_need_to_print);
     }
     free(data);
-    fclose(f);
+
+    if (strcmp(filename,"stdin")){
+        fclose(f);
+    }
 }
 
 /*
@@ -173,14 +177,25 @@ int main(int argc, char*argv[])
     indexes_pattern_and_filename* indexes_pattern_filename;
     indexes_pattern_filename=(indexes_pattern_and_filename*) malloc(sizeof(indexes_pattern_and_filename));
     input_with_file=parse_arguments(argc, argv, pattern, filename, (switches*)&sws, indexes_pattern_filename);
+
     pattern=(char*) malloc(strlen(argv[indexes_pattern_filename->pattern_index_in_argc])*sizeof(char));
-    filename=(char*) malloc(strlen(argv[indexes_pattern_filename->filename_index_in_argc])*sizeof(char));
+    if (input_with_file){
+        filename=(char*) malloc(strlen(argv[indexes_pattern_filename->filename_index_in_argc])*sizeof(char));
+        strcpy(filename,argv[indexes_pattern_filename->filename_index_in_argc]);
+    }
+    else{
+        filename=(char*) malloc((strlen("stdin")+2)*sizeof(char));
+        strcpy(filename,"stdin");
+    }
+    
     strcpy(pattern,argv[indexes_pattern_filename->pattern_index_in_argc]);
-    strcpy(filename,argv[indexes_pattern_filename->filename_index_in_argc]);
+    
     read_file_and_print(filename, pattern, &sws);
 
     free(pattern);
-    free(filename);
+    if (input_with_file){
+        free(filename);
+    }
     free(indexes_pattern_filename);
     return 0;
 }
